@@ -1,0 +1,71 @@
+# MAIN ADDRESS: mr267fZkb8GUwfQMUZaAfHzQg6Q2GMuap1
+version: '3.0'
+services:
+  redis:
+    image: redis
+    volumes:
+      - redis-data:/var/lib/redis
+    networks:
+      - redis
+  worker:
+    image: ruby:2.4.1
+    command: bundle exec sidekiq -r ./workers.rb
+    working_dir: "/app"
+    volumes:
+      - .:/app
+      - gems:/gems
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: "redis://redis:6379/5"
+      BUNDLE_PATH: "/gems"
+      DATABASE_URL: "postgres://user:pass@db:5432/db"
+      CG_ENVIRONMENT: "sandbox"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - database
+      - bitcoin
+      - redis
+  web:
+    image: ruby:2.4.1
+    command: bundle exec shotgun -p 3000 -o 0.0.0.0
+    working_dir: "/app"
+    volumes:
+      - .:/app
+      - gems:/gems
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: "redis://redis:6379/5"
+      BUNDLE_PATH: "/gems"
+      DATABASE_URL: "postgres://user:pass@db:5432/db"
+      CG_ENVIRONMENT: "sandbox"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - database
+      - bitcoin
+      - redis
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "pass"
+      POSTGRES_DB: "db"
+    networks:
+      - database
+    volumes:
+      - db-data:/var/lib/postgresql/data
+volumes:
+  gems:
+  db-data:
+  redis-data:
+networks:
+  database:
+  bitcoin:
+  redis:
